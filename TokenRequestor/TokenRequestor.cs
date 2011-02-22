@@ -15,11 +15,6 @@
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-
-            //this.webBrowser1.Navigate("https://login.southworks.net/adfs/ls/idpinitiatedsignon.aspx");
-            //this.webBrowser1.Navigate("https://login.southworks.net/adfs/ls/idpinitiatedsignon.aspx?loginToRp=https%3a%2f%2fsaml.example.net%2f");
-            //this.webBrowser1.Navigate("https://login.southworks.net/adfs/ls/?wa=wsignin1.0&wtrealm=urn%3aSW-APP-08%3aadfs");
-            //this.webBrowser1.Navigate("https://azurebootcamp.accesscontrol.appfabriclabs.com/v2/wsfederation/?wa=wsignin1.0&wtrealm=https%3a%2f%2ftesttokentroubleshooter%2f");
         }
 
         private void webBrowser1_Navigating(object sender, WebBrowserNavigatingEventArgs e)
