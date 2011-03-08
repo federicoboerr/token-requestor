@@ -32,6 +32,7 @@
             this.getButton = new System.Windows.Forms.Button();
             this.urlTextBox = new System.Windows.Forms.TextBox();
             this.webBrowser1 = new System.Windows.Forms.WebBrowser();
+            this.PostTokenButton = new System.Windows.Forms.Button();
             this.splitContainer.Panel1.SuspendLayout();
             this.splitContainer.Panel2.SuspendLayout();
             this.splitContainer.SuspendLayout();
@@ -48,6 +49,7 @@
             // 
             // splitContainer.Panel1
             // 
+            this.splitContainer.Panel1.Controls.Add(this.PostTokenButton);
             this.splitContainer.Panel1.Controls.Add(this.getButton);
             this.splitContainer.Panel1.Controls.Add(this.urlTextBox);
             // 
@@ -86,6 +88,17 @@
             this.webBrowser1.TabIndex = 1;
             this.webBrowser1.Navigating += new System.Windows.Forms.WebBrowserNavigatingEventHandler(this.webBrowser1_Navigating);
             // 
+            // PostTokenButton
+            // 
+            this.PostTokenButton.Location = new System.Drawing.Point(635, 10);
+            this.PostTokenButton.Name = "PostTokenButton";
+            this.PostTokenButton.Size = new System.Drawing.Size(79, 19);
+            this.PostTokenButton.TabIndex = 2;
+            this.PostTokenButton.Text = "Post Token";
+            this.PostTokenButton.UseVisualStyleBackColor = true;
+            this.PostTokenButton.Visible = false;
+            this.PostTokenButton.Click += new System.EventHandler(this.PostTokenButton_Click);
+            // 
             // TokenRequestorForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -108,6 +121,7 @@
         private System.Windows.Forms.Button getButton;
         private System.Windows.Forms.TextBox urlTextBox;
         private System.Windows.Forms.WebBrowser webBrowser1;
+        private System.Windows.Forms.Button PostTokenButton;
 
     }
 }

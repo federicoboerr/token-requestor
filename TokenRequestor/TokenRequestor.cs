@@ -7,6 +7,8 @@
 
     public partial class TokenRequestorForm : Form
     {
+        private Uri SavedTokenEndpoint;
+        private string SavedToken;
         public TokenRequestorForm()
         {
             InitializeComponent();
@@ -20,7 +22,6 @@
         private void webBrowser1_Navigating(object sender, WebBrowserNavigatingEventArgs e)
         {
             string token = string.Empty;
-
 
             var samlResponseRegex = new System.Text.RegularExpressions.Regex(@"<input type=""hidden"" name=""SAMLResponse"" value=""(?<token>[^""]*)""");
             if (samlResponseRegex.IsMatch(this.webBrowser1.DocumentText))
@@ -43,8 +44,10 @@
                 token = System.Web.HttpUtility.HtmlDecode(tokenHtmlEncoded);
             }
 
-            if (!string.IsNullOrEmpty(token))
+            if (!string.IsNullOrEmpty(token) && this.SavedTokenEndpoint != e.Url)
             {
+                this.SavedTokenEndpoint = e.Url;
+                this.SavedToken = webBrowser1.DocumentText;
                 e.Cancel = true;
                 webBrowser1.Document.OpenNew(true);
                 var fileWriter = File.CreateText("testfile.xml");
@@ -52,6 +55,8 @@
                 fileWriter.Close();
                 webBrowser1.Url = new Uri(Path.Combine(Application.StartupPath, "testfile.xml"));
             }
+            
+            this.PostTokenButton.Visible = e.Url.Segments[e.Url.Segments.Length - 1] == "testfile.xml";
         }
 
         public class CustomResolver : IssuerTokenResolver
@@ -91,6 +96,16 @@
         private void NavigateTo(string location)
         {
             this.webBrowser1.Navigate(location);
+        }
+
+        private void PostTokenButton_Click(object sender, EventArgs e)
+        {
+            if (this.SavedToken != null && this.SavedTokenEndpoint != null)
+            {
+                webBrowser1.Document.OpenNew(true);
+                this.webBrowser1.Document.Write(this.SavedToken);
+                //this.webBrowser1.Navigate(this.SavedTokenEndpoint);
+            }
         }
     }
 }
