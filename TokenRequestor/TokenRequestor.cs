@@ -1,111 +1,147 @@
 ﻿namespace GetToken
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Windows.Forms;
-    using Microsoft.IdentityModel.Tokens;
+    using System.Diagnostics;
+    using System.Xml;
+    using System.Text;
+    using System.Net.Mail;
+    using System.Net;
+    using System.Configuration;
 
     public partial class TokenRequestorForm : Form
     {
         private Uri SavedTokenEndpoint;
         private string SavedToken;
+
+        private IEnumerable<IProtocolHandler> pipeline = new IProtocolHandler[] { 
+            new WsFederationProtocolHandler(), 
+            new Saml2ProtocolResponseHandler() 
+        };
+
         public TokenRequestorForm()
         {
             InitializeComponent();
+
+            this.UrlTextBox.Text = "<enter a valid url>";
         }
 
-        protected override void OnLoad(EventArgs e)
+        private void Browser_Navigating(object sender, WebBrowserNavigatingEventArgs e)
         {
-            base.OnLoad(e);
-        }
-
-        private void webBrowser1_Navigating(object sender, WebBrowserNavigatingEventArgs e)
-        {
-            string token = string.Empty;
-
-            var samlResponseRegex = new System.Text.RegularExpressions.Regex(@"<input type=""hidden"" name=""SAMLResponse"" value=""(?<token>[^""]*)""");
-            if (samlResponseRegex.IsMatch(this.webBrowser1.DocumentText))
-            {
-                var tokenInBase64 = samlResponseRegex.Match(this.webBrowser1.DocumentText).Groups["token"].Value;
-                token = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(tokenInBase64));
-
-                //var samlAssertion = XDocument.Parse(token).Descendants().FirstOrDefault(x => x.Name.LocalName == "Assertion");
-
-                //var tokenHandler = Microsoft.IdentityModel.Tokens.SecurityTokenHandlerCollection.CreateDefaultSecurityTokenHandlerCollection();
-                //tokenHandler.Configuration.IssuerTokenResolver = new CustomResolver();
-                //var secToken = tokenHandler.ReadToken(XmlReader.Create(new StringReader(samlAssertion.ToString())));
-                //var claims = tokenHandler.ValidateToken(secToken);
-            }
-            
-            var wsFederationResponseRegex = new System.Text.RegularExpressions.Regex(@"<input type=""hidden"" name=""wresult"" value=""(?<token>[^""]*)""");
-            if (wsFederationResponseRegex.IsMatch(this.webBrowser1.DocumentText))
-            {
-                var tokenHtmlEncoded = wsFederationResponseRegex.Match(this.webBrowser1.DocumentText).Groups["token"].Value;
-                token = System.Web.HttpUtility.HtmlDecode(tokenHtmlEncoded);
-            }
+            string token = this.AnalyzeResponse(this.Browser.DocumentText);
 
             if (!string.IsNullOrEmpty(token) && this.SavedTokenEndpoint != e.Url)
             {
                 this.SavedTokenEndpoint = e.Url;
-                this.SavedToken = webBrowser1.DocumentText;
+                this.SavedToken = this.Browser.DocumentText;
                 e.Cancel = true;
-                webBrowser1.Document.OpenNew(true);
-                var fileWriter = File.CreateText("testfile.xml");
-                fileWriter.Write(token);
-                fileWriter.Close();
-                webBrowser1.Url = new Uri(Path.Combine(Application.StartupPath, "testfile.xml"));
-            }
-            
-            this.PostTokenButton.Visible = e.Url.Segments[e.Url.Segments.Length - 1] == "testfile.xml";
-        }
+                this.Browser.Document.OpenNew(true);
+                var file = File.CreateText("token.xml");
+                file.Write(token);
+                file.Close();
 
-        public class CustomResolver : IssuerTokenResolver
-        {
-            //protected override bool TryResolveSecurityKeyCore(System.IdentityModel.Tokens.SecurityKeyIdentifierClause keyIdentifierClause, out System.IdentityModel.Tokens.SecurityKey key)
-            //{
-            //    key = null;
-            //    return true;
-            //}
-
-            protected override bool TryResolveTokenCore(System.IdentityModel.Tokens.SecurityKeyIdentifier keyIdentifier, out System.IdentityModel.Tokens.SecurityToken token)
-            {
-                token = null;
-                return true;
-            }
-
-            protected override bool TryResolveTokenCore(System.IdentityModel.Tokens.SecurityKeyIdentifierClause keyIdentifierClause, out System.IdentityModel.Tokens.SecurityToken token)
-            {
-                token = null;
-                return true;
+                this.Browser.Url = new Uri(Path.Combine(Application.StartupPath, "token.xml"));
             }
         }
 
-        private void getButton_Click(object sender, EventArgs e)
+        private string AnalyzeResponse(string response)
         {
-            this.NavigateTo(urlTextBox.Text);
+            string token = string.Empty;
+
+            foreach (var handler in this.pipeline)
+            {
+                if (handler.CanProcess(response))
+                {
+                    token = handler.Process(this.Browser.DocumentText);
+                }
+            }
+
+            return token;
         }
 
         private void urlTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
-                this.NavigateTo(urlTextBox.Text);
+                this.NavigateTo(UrlTextBox.Text);
             }
-        }
-
-        private void NavigateTo(string location)
-        {
-            this.webBrowser1.Navigate(location);
         }
 
         private void PostTokenButton_Click(object sender, EventArgs e)
         {
             if (this.SavedToken != null && this.SavedTokenEndpoint != null)
             {
-                webBrowser1.Document.OpenNew(true);
-                this.webBrowser1.Document.Write(this.SavedToken);
-                //this.webBrowser1.Navigate(this.SavedTokenEndpoint);
+                this.Browser.Document.OpenNew(true);
+                this.Browser.Document.Write(this.SavedToken);
             }
+        }
+
+        private void Browser_DocumentCompleted(object sender, WebBrowserDocumentCompletedEventArgs e)
+        {
+            this.UrlTextBox.Text = e.Url.ToString();
+        }
+
+        private void Browser_ProgressChanged(object sender, WebBrowserProgressChangedEventArgs e)
+        {
+            this.BrowserProgessBar.Maximum = (int)e.MaximumProgress;
+            this.BrowserProgessBar.Value = (int)e.CurrentProgress;
+            this.BrowserProgessBar.ProgressBar.Refresh();
+        }
+
+        private void GoButton_Click(object sender, EventArgs e)
+        {
+            this.NavigateTo(UrlTextBox.Text);
+        }
+
+        private void NavigateTo(string location)
+        {
+            this.Browser.Navigate(location);
+        }
+
+        private void Browser_Navigated(object sender, WebBrowserNavigatedEventArgs e)
+        {
+            bool isToken = this.Browser.Url.ToString().Contains("token.xml");
+            this.PostTokenButton.Enabled = isToken;
+            this.SendTokenButton.Enabled = isToken;
+        }
+
+        private void SendTokenButton_Click(object sender, EventArgs e)
+        {
+            var token = GetTokenFormatted();
+
+            var to = new MailAddress(ConfigurationManager.AppSettings["To"]);
+            string subject = ConfigurationManager.AppSettings["Subject"]
+                                .Replace("{date}", DateTime.Now.ToString());
+
+            var smtp = new SmtpClient();
+            smtp.EnableSsl = smtp.Port == 587 || smtp.Port == 465;
+
+            using (var message = new MailMessage()
+            {              
+                Subject = subject,
+                Body = token
+            })
+            {
+                message.To.Add(to);
+                smtp.Send(message);
+            }
+
+            MessageBox.Show("Mail sent!");
+        }
+
+        private static string GetTokenFormatted()
+        {
+            var sb = new StringBuilder();
+            XmlTextWriter w = new XmlTextWriter(new StringWriter(sb));
+            w.Formatting = Formatting.Indented;
+            w.IndentChar = '\t';
+
+            XmlReader reader = XmlReader.Create(new FileStream(Path.Combine(Application.StartupPath, "token.xml"), FileMode.Open));
+            w.WriteNode(reader, true);
+            w.Flush();
+            return sb.ToString();
         }
     }
 }
