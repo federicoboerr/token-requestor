@@ -26,6 +26,7 @@
             InitializeComponent();
 
             this.UrlTextBox.Text = "<enter a valid url>";
+            this.ActiveControl = this.UrlTextBox.Control;
         }
 
         private void Browser_Navigating(object sender, WebBrowserNavigatingEventArgs e)
@@ -109,9 +110,19 @@
 
         private void SendTokenButton_Click(object sender, EventArgs e)
         {
+            var input = new InputBox();
+            string to = null;
+            var result = input.Show("Enter an email", "Email", "foo@bar.com", 300, 300, ref to);
+            
+            if (result == System.Windows.Forms.DialogResult.Cancel || string.IsNullOrEmpty(to)) 
+            {
+                MessageBox.Show("Please enter an email to send the token to", "Enter email", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             var token = GetTokenFormatted();
 
-            var to = new MailAddress(ConfigurationManager.AppSettings["To"]);
+            //var to = new MailAddress(ConfigurationManager.AppSettings["To"]);
             string subject = ConfigurationManager.AppSettings["Subject"]
                                 .Replace("{date}", DateTime.Now.ToString());
 
